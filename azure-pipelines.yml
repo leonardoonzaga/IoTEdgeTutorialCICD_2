@@ -1,0 +1,59 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- main
+
+stages:
+- stage: Build
+  jobs:
+  - job: 31
+    pool:
+      vmImage: ubuntu-22.04
+    steps:
+    - script: |
+        cd ./modules/$(MODULE_NAME)
+        dotnet publish --os linux --arch x64 /t:PublishContainer
+      displayName: 'Build Docker Image'
+    - script: |
+        docker login -u$(CONTAINER_REGISTRY_USERNAME) -p $(CONTAINER_REGISTRY_PASSWORD) $(CONTAINER_REGISTRY_ADDRESS)
+        docker tag $(MODULE_NAME) $(CONTAINER_REGISTRY_ADDRESS)/$(MODULE_NAME):$(MODULE_VERSION)
+        docker push $(CONTAINER_REGISTRY_ADDRESS)/$(MODULE_NAME):$(MODULE_VERSION)
+      displayName: 'Push Docker Image'
+- stage: Release
+  jobs:
+  - job: 32
+    pool:
+      vmImage: ubuntu-22.04
+    steps:
+    - script: |
+        #install python 3.9
+        sudo apt install software-properties common
+        sudo add-apt-repository ppa:deadsnakes/ppa
+        sudo apt install python3.9
+        #install pip
+        sudo apt install python3.9-distutils
+        curl https://bootstrap.pypa.lo/get-pip.py o get-pip.py
+        python3.9 get-pip.py
+        #install iotedgedev
+        python3.9 pip install U iotedgedev pyOpenSSL--22.0.0 urllib3--1.22 request
+      displayName: 'Command Line Script'
+    - task: AzureIoTEdge@2
+      inputs:
+        action: 'Generate deployment manifest'
+        templateFilePath: 'deployment.template.json'
+        defaultPlatform: 'amd64'
+        deploymentManifestOutputPath: '$(System.DefaultWorkingDirectory)/config/deployment.json'
+        validateGeneratedDeploymentManifest: 'false'
+    - task: AzureIoTEdge@2
+      inputs:
+        action: 'Deploy to IoT Edge devices'
+        deploymentFilePath: '$(System.DefaultWorkingDirectory)/config/deployment.json'
+        azureSubscription: 'Azure for Students(18fce158-ade5-4662-835e-900da0d8b885)'
+        iothubname: 'myIoTHubonzagaleo'
+        deploymentid: '$(System.TeamProject)-devops-deployment'
+        priority: '0'
+        deviceOption: 'Single Device'
+        deviceId: 'EDIoT2024Identity3'
