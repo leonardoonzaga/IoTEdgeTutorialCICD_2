@@ -9,7 +9,7 @@ trigger:
 stages:
 - stage: Build
   jobs:
-  - job: 31
+  - job: j31
     pool:
       vmImage: ubuntu-22.04
     steps:
@@ -24,7 +24,7 @@ stages:
       displayName: 'Push Docker Image'
 - stage: Release
   jobs:
-  - job: 32
+  - job: j32
     pool:
       vmImage: ubuntu-22.04
     steps:
